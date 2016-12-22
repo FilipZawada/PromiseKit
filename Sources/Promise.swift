@@ -82,14 +82,6 @@ open class Promise<T>: UnfailablePromise<T> {
         state = SealedState(resolution: Resolution(error))
     }
 
-    static public func with(_ value: T) -> UnfailablePromise<T> {
-        return Promise<T>(value: value)
-    }
-
-    static public func with(_ error: Error) -> Promise<T> {
-        return Promise<T>(error: error)
-    }
-
     /**
      Careful with this, it is imperative that sealant can only be called once
      or you will end up with spurious unhandled-errors due to possible double
@@ -618,6 +610,20 @@ extension Promise {
         let pipe = PMKJoint<T>()
         let promise = Promise(sealant: { pipe.resolve = $0 })
         return (promise, pipe)
+    }
+
+    /**
+     Create an already fulfilled (unfailable) promise.
+     */
+    public static func with(_ value: T) -> UnfailablePromise<T> {
+        return Promise<T>(value: value)
+    }
+
+    /**
+     Create an already rejected promise.
+     */
+    public static func with(_ error: Error) -> Promise<T> {
+        return Promise<T>(error: error)
     }
 
     /**
