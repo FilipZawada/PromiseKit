@@ -23,5 +23,24 @@ class UnfailablePromiseTests: XCTestCase {
 
         waitForExpectations(timeout: 1)
     }
+
+    func testFirstly() {
+        let exFailable = expectation(description: "firstly failable")
+        let exUnfailable = expectation(description: "firstly unfailable")
+
+        _ = firstly { () throws -> Promise<Void> in
+            return Promise<()>(value: ())
+        }.then {
+            exFailable.fulfill()
+        }
+
+        firstly {
+            Promise<Void>.with(())
+        }.then {
+            exUnfailable.fulfill()
+        }
+
+        waitForExpectations(timeout: 1.0)
+    }
 }
 
