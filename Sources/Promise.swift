@@ -17,7 +17,7 @@ import func Foundation.NSLog
 
  - SeeAlso: [PromiseKit `then` Guide](http://promisekit.org/docs/)
  */
-open class Promise<T> {
+open class Promise<T>: UnfailablePromise<T> {
     let state: State<T>
 
     /**
@@ -51,6 +51,7 @@ open class Promise<T> {
         var resolve: ((Resolution<T>) -> Void)!
         do {
             state = UnsealedState(resolver: &resolve)
+            super.init()
             try resolvers({ resolve(.fulfilled($0)) }, { error in
                 #if !PMKDisableWarnings
                     if self.isPending {
@@ -79,6 +80,14 @@ open class Promise<T> {
      */
     required public init(error: Error) {
         state = SealedState(resolution: Resolution(error))
+    }
+
+    static public func with(_ value: T) -> UnfailablePromise<T> {
+        return Promise<T>(value: value)
+    }
+
+    static public func with(_ error: Error) -> Promise<T> {
+        return Promise<T>(error: error)
     }
 
     /**
@@ -144,10 +153,18 @@ open class Promise<T> {
                //…
            }
      */
-    public func then<U>(on q: DispatchQueue = .default, execute body: @escaping (T) throws -> U) -> Promise<U> {
+    override public func then<U>(on q: DispatchQueue = .default, execute body: @escaping (T) throws -> U) -> Promise<U> {
         return Promise<U> { resolve in
             state.then(on: q, else: resolve) { value in
                 resolve(.fulfilled(try body(value)))
+            }
+        }
+    }
+
+    override public func then<U>(on q: DispatchQueue = .default, execute body: @escaping (T) -> U) -> Promise<U> {
+        return Promise<U> { resolve in
+            state.then(on: q, else: resolve) { value in
+                resolve(.fulfilled(body(value)))
             }
         }
     }
@@ -167,11 +184,23 @@ open class Promise<T> {
                //…
            }
      */
-    public func then<U>(on q: DispatchQueue = .default, execute body: @escaping (T) throws -> Promise<U>) -> Promise<U> {
+    override public func then<U>(on q: DispatchQueue = .default, execute body: @escaping (T) throws -> Promise<U>) -> Promise<U> {
         var rv: Promise<U>!
         rv = Promise<U> { resolve in
             state.then(on: q, else: resolve) { value in
                 let promise = try body(value)
+                guard promise !== rv else { throw PMKError.returnedSelf }
+                promise.state.pipe(resolve)
+            }
+        }
+        return rv
+    }
+
+    override public func then<U>(on q: DispatchQueue = .default, execute body: @escaping (T) -> Promise<U>) -> UnfailablePromise<U> {
+        var rv: Promise<U>!
+        rv = Promise<U> { resolve in
+            state.then(on: q, else: resolve) { value in
+                let promise = body(value)
                 guard promise !== rv else { throw PMKError.returnedSelf }
                 promise.state.pipe(resolve)
             }
