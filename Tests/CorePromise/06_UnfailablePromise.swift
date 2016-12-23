@@ -1,6 +1,9 @@
 import XCTest
 import PromiseKit
 
+fileprivate enum E: Swift.Error {
+    case dummy
+}
 
 class UnfailablePromiseTests: XCTestCase {
     func testWith_value() {
@@ -11,9 +14,6 @@ class UnfailablePromiseTests: XCTestCase {
 
     func testWith_error() {
         let ex = expectation(description: "promise rejected")
-        enum E: Swift.Error {
-            case dummy
-        }
 
         Promise<Int>.with(E.dummy)
                     .catch { err in
@@ -47,13 +47,13 @@ class UnfailablePromiseTests: XCTestCase {
     func testLogic() {
         // unfailable + unfailable #1
         Promise<Int>.with(5).then { val in
-                    return Promise(value: val + 10)
-                }
+            return Promise(value: val + 10)
+        }
 
         // unfailable + unfailable #2
         Promise<Int>.with(5).then { (val: Int) -> Int in
-                    return val + 10
-                }
+            return val + 10
+        }
 
         // unfailable + failable #1 -> warning
         _ = Promise<Int>.with(5).then { val throws -> Int in
@@ -61,9 +61,10 @@ class UnfailablePromiseTests: XCTestCase {
         }
 
         // failable + unfailable -> warning
-        _ = Promise<Int>.with(5).then { val throws -> Int in
+        let p = Promise<Int>.with(E.dummy).then { val -> Int in
             return val + 5
         }
+        p.catch { _ in }
 
         // failable + failable -> warning
         _ = Promise(value: 5).then { val throws -> Int in
